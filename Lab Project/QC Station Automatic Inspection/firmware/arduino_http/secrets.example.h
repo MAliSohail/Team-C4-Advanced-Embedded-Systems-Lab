@@ -1,0 +1,6 @@
+#pragma once
+
+#define WIFI_SSID "YOUR_WIFI_NAME"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define PI_HOST "192.168.0.102"
+#define PI_PORT 5000

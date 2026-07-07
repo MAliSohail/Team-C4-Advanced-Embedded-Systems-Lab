@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QC Inspection Station</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">ADVANCED EMBEDDED SYSTEMS</p>
+        <h1>Quality Control Station</h1>
+      </div>
+      <div class="devices" id="devices"></div>
+    </header>
+
+    <section class="status-panel">
+      <div>
+        <p class="label">CURRENT STATE</p>
+        <h2 id="state">LOADING</h2>
+        <p id="message">Connecting to Raspberry Pi…</p>
+      </div>
+      <div class="inspection-meta">
+        <span id="inspection-id">No active inspection</span>
+        <span id="progress">0 / 4 views</span>
+      </div>
+      <button id="start-button" onclick="startInspection()">Start Test Inspection</button>
+    </section>
+
+    <section class="image-grid" id="image-grid"></section>
+
+    <section class="final-panel">
+      <p class="label">FINAL RESULT</p>
+      <div id="final-result">—</div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>
