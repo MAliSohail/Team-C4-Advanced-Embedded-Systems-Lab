@@ -1,44 +1,36 @@
-# QC Station — Minimal Stage 4
+# QC Station
 
-This is the reduced Flask implementation of the inspection station. It keeps the required workflow and removes the optional features that made the earlier server too large.
+A Flask-based inspection station that captures four views of a part and classifies each one automatically using a trained image model.
 
-## Included functionality
+## How it works
 
-- Arduino button starts an inspection through HTTP.
-- Raspberry Pi controls Arduino `/home` and `/move` routes through HTTP.
-- Raspberry Pi sends four camera commands through MQTT.
-- ESP32-CAM uploads original JPEG bytes through HTTP.
-- Dashboard shows the four images.
-- Technician marks every image PASS or REJECT.
-- Any rejected view produces a final REJECT; four passed views produce PASS.
-- Hardware or communication failures produce SYSTEM_ERROR.
-- Every inspection is saved in its own folder with `result.json`.
+1. An operator places a part on the turntable and presses the Arduino button.
+2. The Arduino notifies the Raspberry Pi over HTTP.
+3. The Pi drives the Arduino turntable to four fixed angles (0, 60, 120, 180 degrees).
+4. At each angle the Pi sends a capture command to the ESP32-CAM over MQTT.
+5. The ESP32-CAM takes a photo and uploads the original JPEG to the Pi over HTTP.
+6. The Pi runs the image through a TFLite image classification model and records a PASS or REJECT label with a confidence score for that view.
+7. Once all four views are captured and classified, the Pi computes the final result. Any rejected view produces a final REJECT; four passed views produce a final PASS.
+8. Hardware or communication failures at any stage produce a SYSTEM_ERROR result instead.
+9. Every inspection is saved in its own folder with a `result.json` containing the full record.
 
-## Deliberately removed
-
-- Retake controls
-- Pass-all and reset-review controls
-- Inspection-history UI
-- Reviewer names and notes
-- Detailed timing records
-- Large event logs
-- Complex state list
-- PyTorch/stub classifier
-- BLE experiment
+The dashboard shows live status, the four captured images, and each view's classification and confidence as the inspection runs.
 
 ## Project structure
 
 ```text
 qc_station_stage4_minimal/
 ├── app.py                     # Flask routes and inspection sequence
-├── config.py                  # IP addresses, ports, topics and timeouts
+├── config.py                  # IP addresses, ports, topics, timeouts, model settings
+├── model.tflite                # Trained image classification model
 ├── services/
-│   ├── arduino.py             # Arduino HTTP client
-│   ├── camera_mqtt.py         # MQTT capture command handling
-│   └── storage.py             # Inspection folders and result.json
-├── templates/dashboard.html   # Page structure
-├── static/dashboard.css       # Dashboard appearance
-├── static/dashboard.js        # Live updates and PASS/REJECT actions
+│   ├── arduino.py              # Arduino HTTP client
+│   ├── camera_mqtt.py          # MQTT capture command handling
+│   ├── classifier.py           # TFLite inference and image preprocessing
+│   └── storage.py              # Inspection folders and result.json
+├── templates/dashboard.html    # Page structure
+├── static/dashboard.css        # Dashboard appearance
+├── static/dashboard.js         # Live status and image updates
 ├── firmware/
 │   ├── arduino_http/
 │   └── esp32_mqtt/
@@ -49,7 +41,7 @@ qc_station_stage4_minimal/
 
 ## Installation on Raspberry Pi
 
-Copy/extract the folder into `~/qc-station/stage4-minimal`, then run:
+Copy or extract the folder into `~/qc-station/stage4-minimal`, then run:
 
 ```bash
 cd ~/qc-station/stage4-minimal
@@ -70,7 +62,6 @@ sudo systemctl status mosquitto --no-pager
 Stop any previous Pi server and start this one:
 
 ```bash
-pkill -f pi_server.py || true
 pkill -f 'python app.py' || true
 ./start.sh
 ```
@@ -93,6 +84,20 @@ For each sketch:
 
 The ESP32 copy includes the two-frame flush used to prevent a stale first image.
 
+## Classification model
+
+The station uses a TFLite model (`model.tflite`) exported from Teachable Machine. Input is a 224x224 RGB image, and output is a two-class softmax score (PASS, REJECT).
+
+Preprocessing before inference:
+
+1. Center-crop the captured JPEG to a square.
+2. Resize to 224x224 using nearest-neighbor interpolation.
+3. Scale pixel values to the range -1 to 1.
+
+This matches the preprocessing built into Teachable Machine's export pipeline, so images are fed to the model exactly as captured, with no manual editing.
+
+To use a different model, replace `model.tflite` and update `CLASSIFIER_MODEL_PATH`, `CLASSIFIER_LABELS`, and `CLASSIFIER_INPUT_SIZE` in `config.py` to match.
+
 ## Main API routes
 
 ```text
@@ -102,7 +107,6 @@ GET  /api/status
 POST /api/inspection/start
 POST /api/inspection/<id>/image
 GET  /api/inspection/<id>/image/<view>
-POST /api/inspection/<id>/classify/<view>
 ```
 
 ## Expected result folder
@@ -116,6 +120,17 @@ data/inspections/QC-YYYYMMDD-HHMMSS-xxx/
 └── result.json
 ```
 
+Each view in `result.json` records its classification label, confidence, and raw scores from the model.
+
+## Deliberately removed
+
+- Retake controls
+- Inspection-history UI
+- Detailed timing records
+- Large event logs
+- Complex state list
+- BLE experiment
+
 ## Important limitation
 
-This minimal version does not restore an unfinished inspection after the Pi server is restarted. That can be added later as a separate reliability feature if required.
+This version does not restore an unfinished inspection after the Pi server is restarted. That can be added later as a separate reliability feature if required.
