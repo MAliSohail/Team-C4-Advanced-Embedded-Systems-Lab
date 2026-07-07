@@ -1,4 +1,4 @@
-# QC Station: Automated Mold Detection for Packaged Food
+# QC Station: Automated Mold Detection for Food
 
 ## What this is
 
