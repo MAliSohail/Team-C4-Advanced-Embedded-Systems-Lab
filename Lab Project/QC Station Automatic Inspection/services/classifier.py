@@ -14,13 +14,6 @@ except ImportError:  # pragma: no cover - older/alternate install
 
 
 class DefectClassifier:
-    """Runs a Teachable-Machine-exported TFLite model against a saved JPEG.
-
-    Preprocessing matches Teachable Machine's fixed export pipeline:
-    center-crop to square, nearest-neighbor resize, RGB, scale to [-1, 1]
-    via (pixel / 127.5) - 1. Changing any of these steps will silently
-    change every prediction, so keep this in lockstep with the model.
-    """
 
     def __init__(self, model_path: str, labels: tuple[str, str], input_size: int) -> None:
         self.labels = labels
